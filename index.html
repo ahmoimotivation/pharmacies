@@ -5252,6 +5252,19 @@
     <p>找不到符合条件的药店<br>请尝试其他关键词</p>
   </div>
 
+  <!-- Show All Button -->
+  <div id="show-all-wrap" style="display:none; padding: 12px 16px 0;">
+    <button onclick="showAll()" style="
+      width:100%; padding:14px;
+      background:#fff; color:#1a3a2a;
+      border: 2px solid #1a3a2a;
+      border-radius:14px;
+      font-size:14px; font-weight:700;
+      cursor:pointer;
+      -webkit-tap-highlight-color:transparent;
+    ">🔍 查看全马所有 192 间药店</button>
+  </div>
+
   <!-- CTA -->
   <div class="cta-banner">
     <span class="cta-emoji">🌿</span>
@@ -5316,22 +5329,44 @@
     }, 400);
   }
 
-  // ── Sort cards by distance ──
+  // ── Sort cards by distance, show only nearest 3 ──
+  var nearbyMode = false;
+
   function sortByDistance() {
     if (userLat === null) return;
+    nearbyMode = true;
     var list = document.getElementById('pharmacy-list');
+
+    // Sort all cards by distance
     allCards.sort(function(a, b) {
       var aLat = parseFloat(a.dataset.lat), aLng = parseFloat(a.dataset.lng);
       var bLat = parseFloat(b.dataset.lat), bLng = parseFloat(b.dataset.lng);
       return haversine(userLat, userLng, aLat, aLng) - haversine(userLat, userLng, bLat, bLng);
     });
-    allCards.forEach(function(c) {
+
+    // Update distance badges & reorder in DOM
+    allCards.forEach(function(c, i) {
       var dist = haversine(userLat, userLng, parseFloat(c.dataset.lat), parseFloat(c.dataset.lng));
       var badge = c.querySelector('.dist-badge');
       badge.style.display = 'block';
       badge.textContent = dist < 1 ? (dist * 1000).toFixed(0) + ' m' : dist.toFixed(1) + ' km';
+      c.dataset.dist = dist;
+      // Show only top 3, hide the rest
+      if (i < 3) { c.classList.remove('hidden'); }
+      else { c.classList.add('hidden'); }
       list.appendChild(c);
     });
+
+    document.getElementById('count-label').textContent = '最近 3 间';
+    document.getElementById('show-all-wrap').style.display = 'block';
+  }
+
+  function showAll() {
+    nearbyMode = false;
+    allCards.forEach(function(c) { c.classList.remove('hidden'); });
+    document.getElementById('count-label').textContent = '共 ' + allCards.length + ' 间';
+    document.getElementById('show-all-wrap').style.display = 'none';
+    applyFilters();
   }
 
   // ── Reverse geocode (Nominatim) ──
@@ -5383,6 +5418,11 @@
 
   // ── Filter & Search ──
   function applyFilters() {
+    // If user is searching or filtering tabs, exit nearby mode
+    if (currentSearch || currentFilter !== 'all') {
+      nearbyMode = false;
+      document.getElementById('show-all-wrap').style.display = 'none';
+    }
     var q = currentSearch.toLowerCase();
     var visible = 0;
     allCards.forEach(function(card) {
